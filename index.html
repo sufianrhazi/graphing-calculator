@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8">
+        <title>Book of Time</title>
+        <style>
+body {
+    font-family: sans-serif;
+    font-size: 16px/1.4;
+}
+input[type="number"] {
+    border: none;
+    border-bottom: 2px solid black;
+    line-height: inherit;
+    font-size: inherit;
+}
+input[type="range"] {
+    width: 80ex;
+    border: none;
+    height: 1.4em;
+    vertical-align: middle;
+}
+textarea {
+    border: none;
+    border-bottom: 2px solid black;
+    font-size: inherit;
+    line-height: inherit;
+    vertical-align: top;
+    padding: 0;
+    margin: 0;
+    width: 80ex;
+    height: 1.4em;
+}
+        </style>
+    </head>
+    <body>
+        <h1>Book of Time</h1>
+        <fieldset data-form>
+            <div data-errors></div>
+            <label>Axis bounds: [min=<input type="number" name="min" id="input-min" placeholder="-1.0" value="-3.0" /></label>,
+            <label>max=<input type="number" name="max" id="input-max" placeholder="1.0" value="3.0" />]</label>
+            <br/>
+            <label>f(x, y, t) =
+                <textarea name="func" id="input-func" placeholder="cos(x*2*PI + t/100) + sin(y*2*PI + t/100)">cos(x*2*PI + t/100) + sin(y*2*PI + t/100)</textarea>
+            </label>
+            <br/>
+            <label>t =
+                <input type="range" name="time" id="input-time" min="0" max="600" step="any" value="0" /> <span data-time-value></span>
+            </label>
+            <br/>
+            <button name="start">Start</button>
+            <button name="pause">Pause</button>
+            <button name="stop">Stop</button>
+        </fieldset>
+        <canvas data-graph-canvas></canvas>
+        <canvas id="canvas"></canvas>
+        <script src="three.js"></script>
+        <script src="book-of-time.js"></script>
+    </body>
+</html>
