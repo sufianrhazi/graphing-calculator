@@ -330,12 +330,18 @@ function GraphView(model, el) {
 }
 Object.assign(GraphView.prototype, {
     _resumeRender: function () {
-        if (this._renderHandle !== null) throw new Error('This should never happen: double resume'); 
+        if (this._renderHandle !== null) {
+            console.trace('This should never happen: double resume');
+            return;
+        }
         this._resumeTime = performance.now();
         this.render();
     },
     _stopRender: function () {
-        if (this._renderHandle === null) throw new Error('This should never happen: double stop'); 
+        if (this._renderHandle === null) {
+            console.trace('This should never happen: double stop');
+            return;
+        }
         cancelAnimationFrame(this._renderHandle);
         if (this.model.isPaused) {
             this._elapsedTime += performance.now() - this._resumeTime;
@@ -400,7 +406,7 @@ Object.assign(GraphView.prototype, {
         ptLight.position.set(0, 6, 0);
         this.scene.add(ptLight);
 
-        this.camera = new THREE.PerspectiveCamera(50, 300 / 300, 0.1, 500);
+        this.camera = new THREE.PerspectiveCamera(50, this.el.height / this.el.width, 0.1, 500);
 
         var MIN = this.model.getMin();
         var MAX = this.model.getMax();
