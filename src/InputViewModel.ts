@@ -18,19 +18,19 @@ export class InputViewModel implements Observable<string> {
     private observer: Observer<string>;
 
     constructor(properties: InputViewModelData) {
+        this.observer = new Observer();
         assertRight(this.setMin(properties.min), 'Invalid min');
         assertRight(this.setMax(properties.max), 'Invalid max');
         assertRight(this.setFunc(properties.func), 'Invalid func');
         assertRight(this.setTime(properties.time), 'Invalid time');
         this.isRunning = false;
         this.isPaused = false;
-        this.observer = new Observer();
     }
 
     public getIsRunning(): boolean {
         return this.isRunning;
     }
-    
+
     public getIsPaused(): boolean {
         return this.isPaused;
     }
