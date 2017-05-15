@@ -1,8 +1,8 @@
-import { qs, qsa, on, getOne } from './SimpleDOM';
-import { left, right } from './Either';
-import { InputViewModel } from './InputViewModel';
-import { InputView } from './InputView';
-import { GraphView } from './GraphView';
+import { qs, qsa, on, getOne } from './lib/SimpleDOM';
+import { left, right } from './lib/Either';
+import { InputViewModel } from './lib/InputViewModel';
+import { InputView } from './lib/InputView';
+import { GraphView } from './lib/GraphView';
 
 var inputModel = new InputViewModel({
     min: parseFloat(getOne(document.body, '[name="min"]', HTMLInputElement).value),
