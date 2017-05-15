@@ -1,12 +1,9 @@
-export class Either<T> {
-    private _brand: any; // Fake brand so that these aren't assignable from anything
-}
+export type Either<T> = Left<T> | Right<T>;
 
-class Left<T> extends Either<T> {
+class Left<T> {
     public readonly val: string;
 
     constructor(val: string) {
-        super();
         this.val = val;
     }
 }
@@ -19,16 +16,15 @@ export function isLeft<T>(either: Either<T>): either is Left<T> {
     return either instanceof Left;
 }
 
-class Right<T> extends Either<T> {
-    public readonly val: any;
+class Right<T> {
+    public readonly val: T;
 
-    constructor(val?: any) {
-        super();
+    constructor(val: T) {
         this.val = val;
     }
 }
 
-export function right<T>(val?: T): Right<T> {
+export function right<T>(val: T): Right<T> {
     return new Right(val);
 }
 
@@ -36,8 +32,15 @@ export function isRight<T>(either: Either<T>): either is Right<T> {
     return either instanceof Right;
 }
 
-export function assertRight<T>(val: Either<T>, msg: string="Assertion Failure"): void {
-    if (val instanceof Left) {
-        throw new Error(`${msg}: ${val.val}`);
+export function fromRight<T>(either: Either<T>): T {
+    if (either instanceof Left) {
+        throw new Error(either.val);
+    }
+    return either.val;
+}
+
+export function assertRight<T>(either: Either<T>, msg: string="Assertion error: "): void {
+    if (either instanceof Left) {
+        throw new Error(msg + ': ' + either.val);
     }
 }
