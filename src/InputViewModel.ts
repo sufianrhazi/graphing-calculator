@@ -45,7 +45,7 @@ export class InputViewModel implements Observable<string> {
         this.min = min;
         this.observer.dispatch('min');
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 
     public getMax(): number {
@@ -58,7 +58,7 @@ export class InputViewModel implements Observable<string> {
         this.max = max;
         this.observer.dispatch('max');
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 
     public getStep(): number {
@@ -69,7 +69,7 @@ export class InputViewModel implements Observable<string> {
         this.func = func; // TODO: parse into an evaluatable expression
         this.observer.dispatch('func');
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 
     public getTime(): number {
@@ -82,7 +82,7 @@ export class InputViewModel implements Observable<string> {
         this.time = time
         this.observer.dispatch('time');
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 
     public listen(f: ObserverCallback<string>) {
@@ -93,7 +93,7 @@ export class InputViewModel implements Observable<string> {
         this.observer.unlisten(f);
     }
 
-    public start(): Either<string> {
+    public start(): Either<undefined> {
         if (this.isRunning && !this.isPaused) return left('Running already');
         if (!this.isRunning) {
             this.isRunning = true;
@@ -104,18 +104,18 @@ export class InputViewModel implements Observable<string> {
             this.observer.dispatch('paused');
         }
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 
-    public pause(): Either<string> {
+    public pause(): Either<undefined> {
         if (!this.isRunning) return left('Cannot pause when stopped');
         this.isPaused = !this.isPaused;
         this.observer.dispatch('paused');
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 
-    public stop(): Either<string> {
+    public stop(): Either<undefined> {
         if (!this.isRunning) return left('Stopped already');
         if (this.isRunning) {
             this.isRunning = false;
@@ -126,6 +126,6 @@ export class InputViewModel implements Observable<string> {
             this.observer.dispatch('paused');
         }
         this.observer.dispatch('any');
-        return right();
+        return right(undefined);
     }
 }
