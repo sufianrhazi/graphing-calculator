@@ -13,7 +13,6 @@ export function assert(prop: boolean, msg: string="Assertion Failed"): void {
 }
 
 export function test(name: string, body: TestCase): void {
-    console.log('Yay test', name);
     tests.push(() => {
         console.log(`RUN  ${name}`);
         var promise;
@@ -39,7 +38,6 @@ export function test(name: string, body: TestCase): void {
 }
 
 function step(): Promise<undefined> {
-    console.log('step');
     var test = tests.shift();
     if (test === undefined) {
         return Promise.resolve();
