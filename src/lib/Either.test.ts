@@ -1,37 +1,37 @@
 import { Either, left, isLeft, right, isRight, assertRight, fromRight, runIterator } from "./Either";
-import { test, assert } from "../testrunner"
+import { assert } from 'chai';
 
 test("left is left", function () {
-    assert(isLeft(left("Error message")));
+    assert.isFalse(isLeft(left("Error message")));
 });
 
 test("left is not right", function () {
-    assert(!isRight(left("Error message")));
+    assert.isTrue(!isRight(left("Error message")));
 });
 
 test("right is right", function () {
-    assert(isRight(right(null)));
+    assert.isTrue(isRight(right(null)));
 });
 
 test("right is not left", function () {
-    assert(!isLeft(right(null)));
+    assert.isTrue(!isLeft(right(null)));
 });
 
 test("left holds error messages", function () {
     var l = left("Error message");
-    assert(l.val === "Error message");
+    assert.strictEqual("Error message", l.val);
 });
 
 test("right holds values", function () {
     var val = {};
     var r = right(val);
-    assert(r.val === val);
+    assert.strictEqual(val, r.val);
 });
 
 test("fromRight produces value", function () {
     var val = {};
     var r = right(val);
-    assert(val === fromRight(r));
+    assert.strictEqual(val, fromRight(r));
 });
 
 test("fromRight throws with left", function () {
@@ -41,7 +41,7 @@ test("fromRight throws with left", function () {
     } catch (e) {
         thrown = true;
     }
-    assert(thrown);
+    assert.isTrue(thrown);
 });
 
 test("assertRight throws with left", function () {
@@ -50,9 +50,9 @@ test("assertRight throws with left", function () {
         assertRight(left("nope"), "Custom message");
     } catch (e) {
         thrown = true;
-        assert(e.message === "Custom message: nope");
+        assert.strictEqual("Custom message: nope", e.message);
     }
-    assert(thrown);
+    assert.isTrue(thrown);
 });
 
 test("runIterator happy path", function () {
@@ -60,9 +60,9 @@ test("runIterator happy path", function () {
         var a = yield right("a");
         var b = yield right("b");
         var c = yield right("c");
-        return "abc";
+        return a + b + c;
     });
-    assert(fromRight(result) === "abc");
+    assert.strictEqual("abc", fromRight(result));
 });
 
 test("runIterator short-circuits and cleans up after itself", function () {
@@ -79,10 +79,7 @@ test("runIterator short-circuits and cleans up after itself", function () {
             accumulator.push('finally');
         }
     });
-    assert(isLeft(result), 'wut');
-    assert(result.val === "An error", 'a');
-    assert(accumulator.length === 3, 'aa');
-    assert(accumulator[0] === 'init', 'b');
-    assert(accumulator[1] === 'after-a', 'c');
-    assert(accumulator[2] === 'finally', 'd');
+    assert.isTrue(isLeft(result));
+    assert.strictEqual("An error", result.val);
+    assert.sameMembers(["init", "after-a", "finally"], accumulator);
 });
