@@ -2,7 +2,7 @@ import { Either, left, isLeft, right, isRight, assertRight, fromRight, runIterat
 import { assert } from 'chai';
 
 test("left is left", function () {
-    assert.isFalse(isLeft(left("Error message")));
+    assert.isTrue(isLeft(left("Error message")));
 });
 
 test("left is not right", function () {
