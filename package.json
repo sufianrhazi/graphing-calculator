@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "parsinator": "^1.0.0",
     "three": "^0.85.2"
   }
 }

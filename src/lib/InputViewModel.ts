@@ -1,6 +1,5 @@
 import { Observable, Observer, ObserverCallback } from "./Observer";
 import { Either, left, right, assertRight } from "./Either";
-
 interface InputViewModelData {
     min: number;
     max: number;
