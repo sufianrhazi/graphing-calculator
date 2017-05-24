@@ -31,16 +31,15 @@ export type Fixity = "prefix" | "postfix";
 export interface NodeOperatorUnary {
     type: "unary";
     value: {
-        op: "-";
+        op: string;
         fixity: Fixity;
         value: NodeExpr;
     }
 }
-export type BinaryOp = "^" | "*" | "/" | "+" | "-" | ">=" | ">" | "<=" | "<" | "==" | "!=";
 export interface NodeOperatorBinary {
     type: "binary";
     value: {
-        op: BinaryOp;
+        op: string;
         left: NodeExpr;
         right: NodeExpr;
     }
@@ -90,109 +89,11 @@ const parseCall: Parser.Parser<NodeCall> = Parser.fromGenerator<NodeReference|st
     } as NodeCall;
 });
 
-
-// const parsePrefixOperator: Parser.Parser<NodeOperatorUnary> = Parser.fromGenerator<string|NodeExpr|undefined,NodeOperatorUnary>(function *() {
-//     yield token(Parser.str("-"));
-//     var value = yield parseExpression;
-//     return {
-//         type: "unary",
-//         value: {
-//             op: "-",
-//             fixity: "prefix",
-//             value: value,
-//         },
-//     } as NodeOperatorUnary;
-// });
-
-// function parseBinaryOpR(firstTerm: NodeExpr): Parser.Parser<NodeOperatorBinary> {
-//     return Parser.choice([
-//         Parser.str("^")
-//     ].map((opParser) => {
-//         return Parser.fromGenerator<NodeExpr|string,NodeOperatorBinary>(function *() {
-//             var op: BinaryOp = yield token(opParser);
-//             // right associative: a ^ b ^ c -> a ^ (b ^ c)
-//             var secondTerm = yield parseExpression;
-//             return {
-//                 type: "binary",
-//                 value: {
-//                     op: op,
-//                     left: firstTerm,
-//                     right: secondTerm,
-//                 },
-//             } as NodeOperatorBinary;
-//         });
-//     }));
-// }
-
-// function parseBinaryOpL(firstTerm: NodeExpr): Parser.Parser<NodeOperatorBinary> {
-//     return Parser.choice([
-//         Parser.str("*"),
-//         Parser.str("/"),
-//         Parser.str("+"),
-//         Parser.str("-"),
-//         Parser.str(">="),
-//         Parser.str(">"),
-//         Parser.str("<="),
-//         Parser.str("<"),
-//         Parser.str("=="),
-//         Parser.str("!="),
-//     ].map((opParser) => {
-//         return Parser.fromGenerator<NodeExpr|string,NodeOperatorBinary>(function *() {
-//             var op: BinaryOp = yield token(opParser);
-//             // left associative: a / b / c -> (a / b) / c
-//             var secondTerm = yield parseExpressionTerm;
-//             var node: NodeOperatorBinary = {
-//                 type: "binary",
-//                 value: {
-//                     op: op,
-//                     left: firstTerm,
-//                     right: secondTerm,
-//                 },
-//             };
-//             var leftExpr = yield Parser.maybe(Parser.choice([
-//                 parseBinaryOpL(node),
-//                 parseBinaryOpR(node)
-//             ]));
-//             if (leftExpr === null) {
-//                 return node;
-//             } else {
-//                 return leftExpr;
-//             }
-//         });
-//     }));
-// }
-
-// //     a + b  +     c * d  *  e ^  f ^ g   * h  * i  + j  + k
-// // ((((a + b) + ((((c * d) * (e ^ (f ^ g)) * h) * i) + j) + k)
-// function parseBinaryOp(firstTerm: NodeExpr): Parser.Parser<NodeOperatorBinary> {
-//     return Parser.choice([
-//         parseBinaryOpR(firstTerm),
-//         parseBinaryOpL(firstTerm)
-//     ]);
-// }
-
 const parseTerm: Parser.Parser<NodeCall|NodeReference|NodeNumber> = Parser.choice<NodeCall|NodeReference|NodeNumber>([
     parseCall,
     parseReference,
     parseLiteral
 ]);
-
-const parseExpressionTerm: Parser.Parser<NodeExpr> = Parser.fromGenerator(function *() {
-    var parenthized = yield Parser.maybe(surround(
-        token(Parser.str("(")),
-        parseExpression,
-        token(Parser.str(")"))
-    ));
-    if (parenthized !== null) {
-        return parenthized;
-    }
-    var opFunc = yield Parser.maybe(parseUnaryOp);
-    if (opFunc === null) {
-        return yield parseTerm;
-    }
-    var term = yield parseExpressionTerm;
-    return opFunc(term);
-});
 
 function surround<L,T,R>(left: Parser.Parser<L>, val: Parser.Parser<T>, right: Parser.Parser<R>): Parser.Parser<T> {
     return Parser.fromGenerator(function *() {
@@ -203,119 +104,169 @@ function surround<L,T,R>(left: Parser.Parser<L>, val: Parser.Parser<T>, right: P
     });
 }
 
-// const parseExpression: Parser.Parser<NodeExpr> = Parser.fromGenerator<NodeExpr|null,NodeExpr>(function *() {
-//     var parenthized: NodeExpr|null = yield Parser.maybe(surround(
-//         token(Parser.str("(")),
-//         parseExpression,
-//         token(Parser.str(")"))
-//     ));
-//     if (parenthized !== null) {
-//         return parenthized;
-//     }
-//     var term: NodeExprTerm = yield parseExpressionTerm;
-//     var binaryOp: NodeOperatorBinary|null = yield Parser.maybe(parseBinaryOp(term));
-//     if (binaryOp !== null) {
-//         return binaryOp;
-//     } else {
-//         return term;
-//     }
-// });
-
-var parseUnaryOp: Parser.Parser<(val: NodeExpr) => NodeOperatorUnary> = Parser.map(token(Parser.str("-")), (op: string) => {
-    return (value: NodeExpr): NodeOperatorUnary => {
-        return {
-            type: "unary",
-            value: {
-                op: "-",
-                fixity: "prefix",
-                value: value,
-            }
-        }
-    }
-});
-
-var parseBinaryOpL: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary> = Parser.map(token(Parser.choice([
-        Parser.str("*"),
-        Parser.str("/"),
-        Parser.str("+"),
-        Parser.str("-"),
-        Parser.str(">="),
-        Parser.str(">"),
-        Parser.str("<="),
-        Parser.str("<"),
-        Parser.str("=="),
-        Parser.str("!=")
-])), (op: BinaryOp) => {
-    return (left: NodeExpr, right: NodeExpr): NodeOperatorBinary => {
-        return {
-            type: "binary",
-            value: {
-                op: op,
-                left: left,
-                right: right 
-            }
-        }
-    }
-});
-
-var parseBinaryOpR: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary> = Parser.map(token(Parser.choice([
-        Parser.str("^")
-])), (op: BinaryOp) => {
-    return (left: NodeExpr, right: NodeExpr): NodeOperatorBinary => {
-        return {
-            type: "binary",
-            value: {
-                op: op,
-                left: left,
-                right: right 
-            }
-        }
-    }
-});
-
-function parseExpressionL(x: NodeExpr): Parser.Parser<NodeExpr> {
-    return Parser.fromGenerator(function *() {
-        var fn = yield parseBinaryOpL;
-        var y = yield parseExpressionTerm;
-        var expr = fn(x, y);
-        var nextExpr = yield Parser.maybe(parseExpressionL(expr));
-        if (nextExpr !== null) {
-            return nextExpr;
-        } else {
-            return expr;
-        }
-    });
+interface UnaryOperatorDecl {
+    op: Parser.Parser<(value: NodeExpr) => NodeOperatorUnary>;
+    repr: string,
+    fixity: "prefix" | "postfix";
+}
+interface BinaryOperatorDecl {
+    op: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary>;
+    repr: string,
+    fixity: "infix";
+    associativity: "left" | "right";
 }
 
-function parseExpressionR(x: NodeExpr): Parser.Parser<NodeExpr> {
-    return Parser.fromGenerator(function *() {
-        var fn = yield parseBinaryOpR;
-        var y = yield Parser.fromGenerator(function *() {
-            var z = yield parseExpressionTerm;
-            var nextExpr = yield Parser.maybe(parseExpressionR(z));
-            if (nextExpr !== null) {
-                return nextExpr;
-            } else {
-                return z;
+type OperatorDecl = (UnaryOperatorDecl|BinaryOperatorDecl)[][];
+
+function binop(associativity: "left" | "right", operator: string): BinaryOperatorDecl {
+    var opParser = Parser.map(token(Parser.str(operator)), (str: string) => (left: NodeExpr, right: NodeExpr): NodeOperatorBinary => {
+            return {
+                type: "binary",
+                value: {
+                    op: operator,
+                    left: left,
+                    right: right,
+                }
+            };
+    });
+    return {
+        op: opParser,
+        repr: operator,
+        fixity: "infix",
+        associativity: associativity,
+    };
+}
+
+function unop(fixity: "prefix" | "postfix", operator: string): UnaryOperatorDecl {
+    var opParser = Parser.map(token(Parser.str(operator)), (str: string) => (val: NodeExpr): NodeOperatorUnary => {
+            return {
+                type: "unary",
+                value: {
+                    op: operator,
+                    fixity: fixity,
+                    value: val,
+                }
+            };
+    });
+    return {
+        op: opParser,
+        repr: operator,
+        fixity: fixity,
+    };
+}
+
+var operators: OperatorDecl = [
+    [unop("prefix", "-"), unop("prefix", "+")],
+    [binop("right", "^")],
+    [binop("left", "*"), binop("left", "/")],
+    [binop("left", "+"), binop("left", "-")],
+    [binop("left", "&&")],
+    [binop("left", "||")],
+    [binop("left", "<="), binop("left", "<"), binop("left", ">="), binop("left", ">"), binop("left", "=="), binop("left", "!=")],
+]
+
+function buildExpressionParser<T>(operators: OperatorDecl, parseTermFactory: () => Parser.Parser<NodeExpr>): Parser.Parser<NodeExpr> {
+    var parseTerm = parseTermFactory();
+    var preOps: (Parser.Parser<(val: NodeExpr) => NodeOperatorUnary>)[] = [];
+    var postOps: (Parser.Parser<(val: NodeExpr) => NodeOperatorUnary>)[] = [];
+    var binOps: {
+        repr: string,
+        precedence: number,
+        associativity: "left" | "right",
+        parser: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary>
+    }[] = [];
+    for (let i = 0; i < operators.length; ++i) {
+        let precedence: number = operators.length - i;
+        for (let j = 0; j < operators[i].length; ++j) {
+            let operator = operators[i][j];
+            switch (operator.fixity) {
+            case "infix":
+                binOps.push({ repr: operator.repr, precedence, associativity: operator.associativity, parser: operator.op });
+                break;
+            case "postfix":
+                postOps.push(operator.op);
+                break;
+            case "prefix":
+                preOps.push(operator.op);
+                break;
+            }
+        }
+    }
+
+    var parseExprTerm = Parser.fromGenerator<NodeExpr|((val: NodeExpr) => NodeOperatorUnary)|null,NodeExpr>(function *() {
+        var preFuncs: ((val: NodeExpr) => NodeOperatorUnary)[] = [];
+        var postFuncs: ((val: NodeExpr) => NodeOperatorUnary)[] = [];
+        for (let op of preOps) {
+            var f: ((val: NodeExpr) => NodeOperatorUnary)|null = yield Parser.maybe(op);
+            if (f !== null) {
+                preFuncs.push(f);
+            }
+        }
+        var result: NodeExpr = yield parseTerm;
+        for (let op of postOps) {
+            var f: ((val: NodeExpr) => NodeOperatorUnary)|null = yield Parser.maybe(op);
+            if (f !== null) {
+                postFuncs.push(f);
+            }
+        }
+        for (let f of preFuncs) {
+            result = f(result);
+        }
+        for (let f of postFuncs) {
+            result = f(result);
+        }
+        return result;
+    });
+
+    // This uses an adapted (for parser combinators) precedence climbing algorithm
+    // See http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
+    function parseExpressionPrecedence(minPrec: number): Parser.Parser<NodeExpr> {
+        return Parser.fromGenerator<NodeExpr|((left: NodeExpr, right: NodeExpr) => NodeExpr)|null|undefined,NodeExpr>(function *() {
+            yield Parser.debugTrace((str) => console.log(`Looking for term\n${str}`));
+            var left: NodeExpr = yield parseExprTerm;
+            while (true) {
+                var action, associativity, precedence;
+                Inner:
+                for (var op of binOps) {
+                    if (op.precedence >= minPrec) {
+                        console.log(`Looking at ${op.repr} prec=${op.precedence} assoc=${op.associativity}`);
+                        yield Parser.debugTrace((str) => console.log(str));
+                        action = yield Parser.maybe(op.parser);
+                        if (action !== null) {
+                            console.log(`Got ${op.repr}`);
+                            associativity = op.associativity;
+                            precedence = op.precedence;
+                            break Inner;
+                        }
+                    }
+                }
+                if (action === null || associativity === undefined || precedence === undefined) {
+                    return left;
+                }
+                var nextMinPrec;
+                if (associativity === 'left') {
+                    nextMinPrec = precedence + 1;
+                } else {
+                    nextMinPrec = precedence;
+                }
+                var right = yield parseExpressionPrecedence(nextMinPrec);
+                left = action(left, right);
             }
         });
-        var expr = fn(x, y);
-        return expr;
-    });
+    }
+    return parseExpressionPrecedence(0);
 }
 
-var parseExpression: Parser.Parser<NodeExpr> = Parser.fromGenerator(function *() {
-    var term = yield parseExpressionTerm;
-    var expr = yield Parser.maybe(Parser.choice([
-        parseExpressionR(term),
-        parseExpressionL(term),
-    ]));
-    if (expr !== null) {
-        return expr;
-    } else {
-        return term;
-    }
-});
+var parseExpression = buildExpressionParser(operators, (): Parser.Parser<NodeExpr> => {
+    return Parser.fromGenerator(function *() {
+        var result = yield Parser.maybe(surround(token(Parser.str("(")), parseExpression, token(Parser.str(")"))));
+        if (result !== null) {
+            return result;
+        } else {
+            return yield parseTerm;
+        }
+    });
+})
 
 export function parse(expression: string): NodeExpr {
     return Parser.runToEnd(parseExpression, expression);

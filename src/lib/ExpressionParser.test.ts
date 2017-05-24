@@ -1,4 +1,4 @@
-import { parse, BinaryOp, NodeCall, NodeExpr, NodeNumber, NodeOperatorBinary, NodeOperatorUnary, NodeReference } from './ExpressionParser';
+import { parse, NodeCall, NodeExpr, NodeNumber, NodeOperatorBinary, NodeOperatorUnary, NodeReference } from './ExpressionParser';
 import { assert } from 'chai';
 
 function astNumber(val: number): NodeNumber {
@@ -13,7 +13,7 @@ function astCall(ref: NodeReference, args: NodeExpr[]): NodeCall {
 function astNegate(val: NodeExpr): NodeOperatorUnary {
     return { type: "unary", value: { op: "-", fixity: "prefix", value: val }};
 }
-function astBinary(op: BinaryOp, left: NodeExpr, right: NodeExpr): NodeOperatorBinary {
+function astBinary(op: string, left: NodeExpr, right: NodeExpr): NodeOperatorBinary {
     return { type: "binary", value: { op: op, left: left, right: right } };
 }
 
