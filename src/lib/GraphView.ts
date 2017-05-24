@@ -99,17 +99,18 @@ export class GraphView {
             this.graphGeo.verticesNeedUpdate = true;
         };
 
-        update((x: number, y: number, t: number): number => {
-            return 0.5 + (
+        update(this.model.getFunc(), sec);
+            /*
+            0.5 + (
                 Math.sin(2 * ((y+x) + t * Math.PI / 3)) +
                 Math.cos(2 * ((y-x) + t * Math.PI / 5)) +
                 Math.sin(2 * (y + t * Math.PI / 7)) +
                 Math.cos(2 * (x + t * Math.PI / 11)) +
                 Math.sin(2 * (y + t * Math.PI / 17)) +
                 Math.cos(2 * (x + t * Math.PI / 13))
-            ) / 12;
-        }, sec);
-
+            ) / 12
+            */;
+        
         this.camera.position.set(
             8 * Math.sin(Math.PI / 4 + Math.PI * 2 * sec / 300),
             4,

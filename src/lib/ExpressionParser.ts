@@ -75,11 +75,13 @@ const parseReference: Parser.Parser<NodeReference> = Parser.fromGenerator(functi
     );
 });
 
-const parseCall: Parser.Parser<NodeCall> = Parser.fromGenerator<NodeReference|string|NodeExpr[]|undefined,NodeCall>(function *() {
+const parseCall: Parser.Parser<NodeCall> = Parser.fromGenerator<NodeReference|NodeExpr[],NodeCall>(function *() {
     var reference = yield parseReference;
-    yield token(Parser.str("("));
-    var args = yield Parser.sepBy(token(Parser.str(',')), parseExpression);
-    yield token(Parser.str(")"));
+    var args = yield Parser.surround(
+        token(Parser.str("(")),
+        Parser.sepBy(token(Parser.str(',')), parseExpression),
+        token(Parser.str(")"))
+    );
     return {
         type: "call",
         value: {
@@ -95,169 +97,123 @@ const parseTerm: Parser.Parser<NodeCall|NodeReference|NodeNumber> = Parser.choic
     parseLiteral
 ]);
 
-function surround<L,T,R>(left: Parser.Parser<L>, val: Parser.Parser<T>, right: Parser.Parser<R>): Parser.Parser<T> {
-    return Parser.fromGenerator(function *() {
-        yield left;
-        var v = yield val;
-        yield right;
-        return v;
-    });
-}
 
-interface OperatorDeclUnary {
-    op: Parser.Parser<(value: NodeExpr) => NodeOperatorUnary>;
-    fixity: "prefix" | "postfix";
-}
-interface OperatorDeclBinary {
-    op: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary>;
-    fixity: "infix";
-    associativity: "left" | "right";
-}
-
-type OperatorDecl = OperatorDeclUnary|OperatorDeclBinary;
-type OperatorDecls = OperatorDecl[];
-
-function binop(associativity: "left" | "right", operator: string): OperatorDeclBinary {
-    var opParser = Parser.map(token(Parser.str(operator)), (str: string) => (left: NodeExpr, right: NodeExpr): NodeOperatorBinary => {
-            return {
-                type: "binary",
-                value: {
-                    op: operator,
-                    left: left,
-                    right: right,
-                }
-            };
+function binop(associativity: "left" | "right", operator: string): Parser.OperatorDeclBinary<NodeExpr> {
+    var opParser = token(Parser.str(operator));
+    var parser = Parser.map(opParser, (str: string) => (left: NodeExpr, right: NodeExpr): NodeOperatorBinary => {
+        return {
+            type: "binary",
+            value: {
+                op: operator,
+                left: left,
+                right: right,
+            }
+        };
     });
     return {
-        op: opParser,
+        parser: parser,
         fixity: "infix",
         associativity: associativity,
     };
 }
 
-function unop(fixity: "prefix" | "postfix", operator: string): OperatorDeclUnary {
-    var opParser = Parser.map(token(Parser.str(operator)), (str: string) => (val: NodeExpr): NodeOperatorUnary => {
-            return {
-                type: "unary",
-                value: {
-                    op: operator,
-                    fixity: fixity,
-                    value: val,
-                }
-            };
+function unop(fixity: "prefix" | "postfix", operator: string): Parser.OperatorDeclUnary<NodeExpr> {
+    var opParser = token(Parser.str(operator));
+    var parser = Parser.map(opParser, (str: string) => (val: NodeExpr): NodeOperatorUnary => {
+        return {
+            type: "unary",
+            value: {
+                op: operator,
+                fixity: fixity,
+                value: val,
+            }
+        };
     });
     return {
-        op: opParser,
+        parser: parser,
         fixity: fixity,
     };
 }
-
-var operators: OperatorDecls = [
+var parseExpression: Parser.Parser<NodeExpr> = Parser.buildExpressionParser<NodeExpr>([
     unop("prefix", "-"),
     unop("prefix", "+"),
     binop("right", "^"),
-    binop("left", "*"), binop("left", "/"),
-    binop("left", "+"), binop("left", "-"),
+    binop("left", "*"),
+    binop("left", "/"),
+    binop("left", "+"),
+    binop("left", "-"),
     binop("left", "&&"),
     binop("left", "||"),
     binop("left", "<="), binop("left", "<"), binop("left", ">="), binop("left", ">"), binop("left", "=="), binop("left", "!=")
-]
-
-function buildExpressionParser<T>(operators: OperatorDecls, parseTermFactory: () => Parser.Parser<NodeExpr>): Parser.Parser<NodeExpr> {
-    var parseTerm = parseTermFactory();
-    var preOps: (Parser.Parser<(val: NodeExpr) => NodeOperatorUnary>)[] = [];
-    var postOps: (Parser.Parser<(val: NodeExpr) => NodeOperatorUnary>)[] = [];
-    var binOps: {
-        precedence: number,
-        associativity: "left" | "right",
-        parser: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary>
-    }[] = [];
-    for (let i = 0; i < operators.length; ++i) {
-        let precedence: number = operators.length - i;
-        let operator = operators[i];
-        switch (operator.fixity) {
-        case "infix":
-            binOps.push({ precedence, associativity: operator.associativity, parser: operator.op });
-            break;
-        case "postfix":
-            postOps.push(operator.op);
-            break;
-        case "prefix":
-            preOps.push(operator.op);
-            break;
-        }
-    }
-
-    var parseExprTerm = Parser.fromGenerator<NodeExpr|((val: NodeExpr) => NodeOperatorUnary)|null,NodeExpr>(function *() {
-        var preFuncs: ((val: NodeExpr) => NodeOperatorUnary)[] = [];
-        var postFuncs: ((val: NodeExpr) => NodeOperatorUnary)[] = [];
-        for (let op of preOps) {
-            var f: ((val: NodeExpr) => NodeOperatorUnary)|null = yield Parser.maybe(op);
-            if (f !== null) {
-                preFuncs.push(f);
-            }
-        }
-        var result: NodeExpr = yield parseTerm;
-        for (let op of postOps) {
-            var f: ((val: NodeExpr) => NodeOperatorUnary)|null = yield Parser.maybe(op);
-            if (f !== null) {
-                postFuncs.push(f);
-            }
-        }
-        for (let f of preFuncs) {
-            result = f(result);
-        }
-        for (let f of postFuncs) {
-            result = f(result);
-        }
-        return result;
-    });
-
-    // This uses the precedence climbing algorithm
-    // See http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
-    function parseExpressionPrecedence(minPrec: number): Parser.Parser<NodeExpr> {
-        return Parser.fromGenerator<NodeExpr|((left: NodeExpr, right: NodeExpr) => NodeExpr)|null,NodeExpr>(function *() {
-            var left: NodeExpr = yield parseExprTerm;
-            while (true) {
-                var action = null;
-                var associativity: "left" | "right" | undefined;
-                var precedence: number | undefined;
-                for (var i = 0; i < binOps.length && action === null; ++i) {
-                    var op = binOps[i];
-                    if (op.precedence >= minPrec) {
-                        action = yield Parser.maybe(op.parser);
-                        associativity = op.associativity;
-                        precedence = op.precedence;
-                    }
-                }
-                if (action === null) { // if action is not null, associativity and precedence are both not undefined
-                    return left;
-                }
-                var nextMinPrec: number;
-                if (associativity === 'left') {
-                    nextMinPrec = <number>precedence + 1;
-                } else {
-                    nextMinPrec = <number>precedence;
-                }
-                var right = yield parseExpressionPrecedence(nextMinPrec);
-                left = action(left, right);
-            }
-        });
-    }
-    return parseExpressionPrecedence(0);
-}
-
-var parseExpression = buildExpressionParser(operators, (): Parser.Parser<NodeExpr> => {
-    return Parser.fromGenerator(function *() {
-        var result = yield Parser.maybe(surround(token(Parser.str("(")), parseExpression, token(Parser.str(")"))));
-        if (result !== null) {
-            return result;
-        } else {
-            return yield parseTerm;
-        }
-    });
-})
+], () => Parser.choice([
+    Parser.surround(token(Parser.str("(")), parseExpression, token(Parser.str(")"))),
+    parseTerm
+]));
 
 export function parse(expression: string): NodeExpr {
     return Parser.runToEnd(parseExpression, expression);
+}
+
+function compileExpr(expression: NodeExpr): string {
+    switch (expression.type) {
+        case "number": {
+            return expression.value.toString();
+        }
+        case "binary": {
+            let left = compileExpr(expression.value.left);
+            let right = compileExpr(expression.value.right);
+            switch (expression.value.op) {
+                case '*':
+                case '/':
+                case '+':
+                case '-':
+                case '&&':
+                case '||':
+                case '<=':
+                case '<':
+                case '>=':
+                case '>':
+                    return `(${left} ${expression.value.op} ${right})`;
+                case '==':
+                    return `(${left} === ${right})`;
+                case '!=':
+                    return `(${left} !== ${right})`;
+                case '^':
+                    return `Math.pow(${left}, ${right})`;
+                default:
+                    throw new Error(`Unknown operator: ${expression.value.op}`);
+            }
+        }
+        case "unary": {
+            let val = compileExpr(expression.value.value);
+            return `(-${val})`;
+        }
+        case "call": {
+            let ref = compileExpr(expression.value.reference);
+            let args = expression.value.args.map((arg) => compileExpr(arg));
+            return `${ref}(${args.join(', ')})`;
+        }
+        case "reference": {
+            if (['x', 'y', 't'].indexOf(expression.value) !== -1) {
+                return expression.value;
+            } else if (expression.value in Math && typeof (Math as any)[expression.value] === 'function') {
+                return 'Math.' + expression.value;
+            } else if (expression.value === 'pi') {
+                return 'Math.PI';
+            } else if (expression.value === 'e') {
+                return 'Math.E';
+            } else if (expression.value === 'rand') {
+                return 'Math.random';
+            } else {
+                throw new Error(`ReferenceError: reference variable ${expression.value} does not exist`);
+            }
+        }
+    }
+};
+
+export function compile(expression: NodeExpr): (x: number, y: number, t: number) => number {
+    var func = new Function('x', 'y', 't', `return ${compileExpr(expression)};`);
+    return function (x: number, y: number, t: number) {
+        return func(x, y, t) as number;
+    };
 }

@@ -1,5 +1,7 @@
 import { Observable, Observer, ObserverCallback } from "./Observer";
 import { Either, left, right, assertRight } from "./Either";
+import { parse, compile } from "./ExpressionParser";
+
 interface InputViewModelData {
     min: number;
     max: number;
@@ -10,7 +12,7 @@ interface InputViewModelData {
 export class InputViewModel implements Observable<string> {
     private min: number;
     private max: number;
-    private func: string;
+    private func: (x: number, y: number, t: number) => number;
     private time: number;
     private isRunning: boolean;
     private isPaused: boolean;
@@ -64,8 +66,18 @@ export class InputViewModel implements Observable<string> {
         return (this.max - this.min) / 50;
     }
 
+    public getFunc(): (x: number, y: number, z: number) => number {
+        return this.func;
+    }
+
     public setFunc(func: string): Either<undefined> {
-        this.func = func; // TODO: parse into an evaluatable expression
+        try {
+            var parsed = parse(func);
+            var compiled = compile(parsed);
+        } catch (e) {
+            return left(e.message);
+        }
+        this.func = compiled; // TODO: parse into an evaluatable expression
         this.observer.dispatch('func');
         this.observer.dispatch('any');
         return right(undefined);
