@@ -31,10 +31,10 @@ export class InputView {
             stop: getOne(this.el, '[name="stop"]', HTMLButtonElement),
             errors: getOne(this.el, '[data-errors]', HTMLElement),
         };
-        on(this.el, 'change', 'input[name="min"]', e => this.onMinChange());
-        on(this.el, 'change', 'input[name="max"]', e => this.onMaxChange());
-        on(this.el, 'change', 'input[name="func"]', e => this.onFuncChange());
-        on(this.el, 'change', 'input[name="time"]', e => this.onTimeChange());
+        on(this.el, 'change', '[name="min"]', e => this.onMinChange());
+        on(this.el, 'change', '[name="max"]', e => this.onMaxChange());
+        on(this.el, 'change', '[name="func"]', e => this.onFuncChange());
+        on(this.el, 'change', '[name="time"]', e => this.onTimeChange());
         on(this.el, 'click', 'button[name="start"]', e => this.onStart());
         on(this.el, 'click', 'button[name="pause"]', e => this.onPause());
         on(this.el, 'click', 'button[name="stop"]', e => this.onStop());
@@ -89,7 +89,9 @@ export class InputView {
     }
 
     public onFuncChange(): void {
+        console.log('neato', this.els.func.value);
         var result = this.model.setFunc(this.els.func.value);
+        console.log('result', result);
         if (isLeft(result)) {
             this.setError('func', result.val, this.els.func);
         } else {

@@ -84,14 +84,7 @@ export class GraphView {
             var STEP = this.model.getStep();
             for (var y = MIN; y < MAX; y += STEP) {
                 for (var x = MIN; x < MAX; x += STEP) {
-                    var ul = fn(x       , y       , t);
-                    var ur = fn(x + STEP, y       , t);
-                    var ll = fn(x       , y + STEP, t);
-                    var lr = fn(x + STEP, y + STEP, t);
-                    this.graphGeo.vertices[offset++].set(x       , ul, y       );
-                    this.graphGeo.vertices[offset++].set(x       , ll, y + STEP);
-                    this.graphGeo.vertices[offset++].set(x + STEP, ur, y       );
-                    this.graphGeo.vertices[offset++].set(x + STEP, lr, y + STEP);
+                    this.graphGeo.vertices[offset++].set(x, fn(x, y, t), y);
                 }
             }
             this.graphGeo.computeFaceNormals();
@@ -100,16 +93,6 @@ export class GraphView {
         };
 
         update(this.model.getFunc(), sec);
-            /*
-            0.5 + (
-                Math.sin(2 * ((y+x) + t * Math.PI / 3)) +
-                Math.cos(2 * ((y-x) + t * Math.PI / 5)) +
-                Math.sin(2 * (y + t * Math.PI / 7)) +
-                Math.cos(2 * (x + t * Math.PI / 11)) +
-                Math.sin(2 * (y + t * Math.PI / 17)) +
-                Math.cos(2 * (x + t * Math.PI / 13))
-            ) / 12
-            */;
         
         this.camera.position.set(
             8 * Math.sin(Math.PI / 4 + Math.PI * 2 * sec / 300),
@@ -136,19 +119,24 @@ export class GraphView {
         this.scene.add(axisGrid);
 
         this.graphGeo = new THREE.Geometry();
-        for (var y = MIN; y < MAX; y += STEP) {
-            for (var x = MIN; x < MAX; x += STEP) {
-                var offset = this.graphGeo.vertices.length;
+        var ySteps = Math.floor((MAX - MIN) / STEP);
+        var xSteps = Math.floor((MAX - MIN) / STEP);
+        for (var y = 0; y < ySteps; ++y) {
+            for (var x = 0; x < xSteps; ++x) {
                 this.graphGeo.vertices.push(
-                    new THREE.Vector3(0,0,0),
-                    new THREE.Vector3(0,0,0),
-                    new THREE.Vector3(0,0,0),
                     new THREE.Vector3(0,0,0)
                 );
-                this.graphGeo.faces.push(
-                    new THREE.Face3(offset + 0, offset + 1, offset + 2),
-                    new THREE.Face3(offset + 2, offset + 1, offset + 3)
-                );
+                if (y > 0 && x > 0) {
+                    // at each point greater than zero, add two
+                    // triangles to construct the previous tile
+                    // 1: center; up-left; up
+                    // 2: up-left, center; left
+                    var offset = y * ySteps + x;
+                    this.graphGeo.faces.push(
+                        new THREE.Face3(offset, offset - ySteps - 1, offset - ySteps),
+                        new THREE.Face3(offset - ySteps - 1, offset, offset - 1)
+                    );
+                }
             }
         }
         var graphMat = new THREE.MeshLambertMaterial({

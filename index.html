@@ -31,12 +31,15 @@ textarea {
     width: 80ex;
     height: 1.4em;
 }
+.errors {
+    background-color: #ff8888;
+    color: black;
+}
         </style>
     </head>
     <body>
         <h1>Book of Time</h1>
         <fieldset data-form>
-            <div data-errors></div>
             <label>Axis bounds: [min=<input type="number" name="min" id="input-min" placeholder="-1.0" value="-3.0" /></label>,
             <label>max=<input type="number" name="max" id="input-max" placeholder="1.0" value="3.0" />]</label>
             <br/>
@@ -51,6 +54,7 @@ textarea {
             <button name="start">Start</button>
             <button name="pause">Pause</button>
             <button name="stop">Stop</button>
+            <pre class="errors" data-errors></pre>
         </fieldset>
         <canvas width="480" height="480" data-graph-canvas></canvas>
         <script src="build/bundle/main.js"></script>
