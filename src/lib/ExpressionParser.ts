@@ -104,21 +104,20 @@ function surround<L,T,R>(left: Parser.Parser<L>, val: Parser.Parser<T>, right: P
     });
 }
 
-interface UnaryOperatorDecl {
+interface OperatorDeclUnary {
     op: Parser.Parser<(value: NodeExpr) => NodeOperatorUnary>;
-    repr: string,
     fixity: "prefix" | "postfix";
 }
-interface BinaryOperatorDecl {
+interface OperatorDeclBinary {
     op: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary>;
-    repr: string,
     fixity: "infix";
     associativity: "left" | "right";
 }
 
-type OperatorDecl = (UnaryOperatorDecl|BinaryOperatorDecl)[][];
+type OperatorDecl = OperatorDeclUnary|OperatorDeclBinary;
+type OperatorDecls = OperatorDecl[];
 
-function binop(associativity: "left" | "right", operator: string): BinaryOperatorDecl {
+function binop(associativity: "left" | "right", operator: string): OperatorDeclBinary {
     var opParser = Parser.map(token(Parser.str(operator)), (str: string) => (left: NodeExpr, right: NodeExpr): NodeOperatorBinary => {
             return {
                 type: "binary",
@@ -131,13 +130,12 @@ function binop(associativity: "left" | "right", operator: string): BinaryOperato
     });
     return {
         op: opParser,
-        repr: operator,
         fixity: "infix",
         associativity: associativity,
     };
 }
 
-function unop(fixity: "prefix" | "postfix", operator: string): UnaryOperatorDecl {
+function unop(fixity: "prefix" | "postfix", operator: string): OperatorDeclUnary {
     var opParser = Parser.map(token(Parser.str(operator)), (str: string) => (val: NodeExpr): NodeOperatorUnary => {
             return {
                 type: "unary",
@@ -150,46 +148,43 @@ function unop(fixity: "prefix" | "postfix", operator: string): UnaryOperatorDecl
     });
     return {
         op: opParser,
-        repr: operator,
         fixity: fixity,
     };
 }
 
-var operators: OperatorDecl = [
-    [unop("prefix", "-"), unop("prefix", "+")],
-    [binop("right", "^")],
-    [binop("left", "*"), binop("left", "/")],
-    [binop("left", "+"), binop("left", "-")],
-    [binop("left", "&&")],
-    [binop("left", "||")],
-    [binop("left", "<="), binop("left", "<"), binop("left", ">="), binop("left", ">"), binop("left", "=="), binop("left", "!=")],
+var operators: OperatorDecls = [
+    unop("prefix", "-"),
+    unop("prefix", "+"),
+    binop("right", "^"),
+    binop("left", "*"), binop("left", "/"),
+    binop("left", "+"), binop("left", "-"),
+    binop("left", "&&"),
+    binop("left", "||"),
+    binop("left", "<="), binop("left", "<"), binop("left", ">="), binop("left", ">"), binop("left", "=="), binop("left", "!=")
 ]
 
-function buildExpressionParser<T>(operators: OperatorDecl, parseTermFactory: () => Parser.Parser<NodeExpr>): Parser.Parser<NodeExpr> {
+function buildExpressionParser<T>(operators: OperatorDecls, parseTermFactory: () => Parser.Parser<NodeExpr>): Parser.Parser<NodeExpr> {
     var parseTerm = parseTermFactory();
     var preOps: (Parser.Parser<(val: NodeExpr) => NodeOperatorUnary>)[] = [];
     var postOps: (Parser.Parser<(val: NodeExpr) => NodeOperatorUnary>)[] = [];
     var binOps: {
-        repr: string,
         precedence: number,
         associativity: "left" | "right",
         parser: Parser.Parser<(left: NodeExpr, right: NodeExpr) => NodeOperatorBinary>
     }[] = [];
     for (let i = 0; i < operators.length; ++i) {
         let precedence: number = operators.length - i;
-        for (let j = 0; j < operators[i].length; ++j) {
-            let operator = operators[i][j];
-            switch (operator.fixity) {
-            case "infix":
-                binOps.push({ repr: operator.repr, precedence, associativity: operator.associativity, parser: operator.op });
-                break;
-            case "postfix":
-                postOps.push(operator.op);
-                break;
-            case "prefix":
-                preOps.push(operator.op);
-                break;
-            }
+        let operator = operators[i];
+        switch (operator.fixity) {
+        case "infix":
+            binOps.push({ precedence, associativity: operator.associativity, parser: operator.op });
+            break;
+        case "postfix":
+            postOps.push(operator.op);
+            break;
+        case "prefix":
+            preOps.push(operator.op);
+            break;
         }
     }
 
@@ -218,36 +213,31 @@ function buildExpressionParser<T>(operators: OperatorDecl, parseTermFactory: () 
         return result;
     });
 
-    // This uses an adapted (for parser combinators) precedence climbing algorithm
+    // This uses the precedence climbing algorithm
     // See http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
     function parseExpressionPrecedence(minPrec: number): Parser.Parser<NodeExpr> {
-        return Parser.fromGenerator<NodeExpr|((left: NodeExpr, right: NodeExpr) => NodeExpr)|null|undefined,NodeExpr>(function *() {
-            yield Parser.debugTrace((str) => console.log(`Looking for term\n${str}`));
+        return Parser.fromGenerator<NodeExpr|((left: NodeExpr, right: NodeExpr) => NodeExpr)|null,NodeExpr>(function *() {
             var left: NodeExpr = yield parseExprTerm;
             while (true) {
-                var action, associativity, precedence;
-                Inner:
-                for (var op of binOps) {
+                var action = null;
+                var associativity: "left" | "right" | undefined;
+                var precedence: number | undefined;
+                for (var i = 0; i < binOps.length && action === null; ++i) {
+                    var op = binOps[i];
                     if (op.precedence >= minPrec) {
-                        console.log(`Looking at ${op.repr} prec=${op.precedence} assoc=${op.associativity}`);
-                        yield Parser.debugTrace((str) => console.log(str));
                         action = yield Parser.maybe(op.parser);
-                        if (action !== null) {
-                            console.log(`Got ${op.repr}`);
-                            associativity = op.associativity;
-                            precedence = op.precedence;
-                            break Inner;
-                        }
+                        associativity = op.associativity;
+                        precedence = op.precedence;
                     }
                 }
-                if (action === null || associativity === undefined || precedence === undefined) {
+                if (action === null) { // if action is not null, associativity and precedence are both not undefined
                     return left;
                 }
-                var nextMinPrec;
+                var nextMinPrec: number;
                 if (associativity === 'left') {
-                    nextMinPrec = precedence + 1;
+                    nextMinPrec = <number>precedence + 1;
                 } else {
-                    nextMinPrec = precedence;
+                    nextMinPrec = <number>precedence;
                 }
                 var right = yield parseExpressionPrecedence(nextMinPrec);
                 left = action(left, right);

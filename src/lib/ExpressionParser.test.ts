@@ -10,8 +10,8 @@ function astRef(val: string): NodeReference {
 function astCall(ref: NodeReference, args: NodeExpr[]): NodeCall {
     return { type: "call", value: { reference: ref, args: args }};
 }
-function astNegate(val: NodeExpr): NodeOperatorUnary {
-    return { type: "unary", value: { op: "-", fixity: "prefix", value: val }};
+function astUnary(op: string, fixity: "prefix" | "postfix", val: NodeExpr): NodeOperatorUnary {
+    return { type: "unary", value: { op: op, fixity: fixity, value: val }};
 }
 function astBinary(op: string, left: NodeExpr, right: NodeExpr): NodeOperatorBinary {
     return { type: "binary", value: { op: op, left: left, right: right } };
@@ -65,9 +65,9 @@ test('Call expression', function () {
 });
 
 test('unary expression', function () {
-    assert.deepEqual<any>(astNegate(astRef("x")), parse("-x"));
-    assert.deepEqual<any>(astNegate(astNumber(3)), parse("-3"));
-    assert.deepEqual<any>(astNegate(astCall(astRef("rand"), [])), parse("-rand()"));
+    assert.deepEqual<any>(astUnary("-", "prefix", astRef("x")), parse("-x"));
+    assert.deepEqual<any>(astUnary("-", "prefix", astNumber(3)), parse("-3"));
+    assert.deepEqual<any>(astUnary("-", "prefix", astCall(astRef("rand"), [])), parse("-rand()"));
 });
 
 test('binary expression', function () {
@@ -127,9 +127,9 @@ test('order of operations: 3', function () {
             astBinary('*',
                 astNumber(3),
                 astBinary('^',
-                    astNumber(4),
+                    astUnary('-', "prefix", astNumber(4)),
                     astNumber(5)
                 ),
             )
-        ), parse("2+3*4^5"));
+        ), parse("2+3*-4^5"));
 });
