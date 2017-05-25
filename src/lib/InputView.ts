@@ -34,6 +34,7 @@ export class InputView {
         on(this.el, 'change', '[name="min"]', e => this.onMinChange());
         on(this.el, 'change', '[name="max"]', e => this.onMaxChange());
         on(this.el, 'change', '[name="func"]', e => this.onFuncChange());
+        on(this.el, 'keyup', '[name="func"]', e => this.onFuncChange());
         on(this.el, 'change', '[name="time"]', e => this.onTimeChange());
         on(this.el, 'click', 'button[name="start"]', e => this.onStart());
         on(this.el, 'click', 'button[name="pause"]', e => this.onPause());

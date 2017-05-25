@@ -1,4 +1,4 @@
-import { parse, NodeCall, NodeExpr, NodeNumber, NodeOperatorBinary, NodeOperatorUnary, NodeReference } from './ExpressionParser';
+import { parse, compileExpr, NodeCall, NodeExpr, NodeNumber, NodeOperatorBinary, NodeOperatorUnary, NodeReference, NodeBinding, NodeFunction } from './ExpressionParser';
 import { assert } from 'chai';
 
 function astNumber(val: number): NodeNumber {
@@ -16,6 +16,30 @@ function astUnary(op: string, fixity: "prefix" | "postfix", val: NodeExpr): Node
 function astBinary(op: string, left: NodeExpr, right: NodeExpr): NodeOperatorBinary {
     return { type: "binary", value: { op: op, left: left, right: right } };
 }
+function astBinding(reference: string, binding: NodeExpr, value: NodeExpr): NodeBinding {
+    return {
+        type: "binding", 
+        value: {
+            reference: {
+                type: "reference",
+                value: reference,
+            },
+            binding: binding,
+            expression: value
+        }
+    };
+}
+function astFunction(ref: string, args: NodeReference[], body: NodeExpr, context: NodeExpr): NodeFunction {
+    return {
+        type: "function",
+        value: {
+            reference: { type: "reference", value: ref },
+            args: args,
+            body: body,
+            context: context,
+        }
+    }
+}
 
 function exprToString(expr: NodeExpr): string {
     switch (expr.type) {
@@ -24,11 +48,15 @@ function exprToString(expr: NodeExpr): string {
         case 'unary':
             return `(-${exprToString(expr.value.value)})`;
         case 'call':
-            return `${exprToString(expr.value.reference)}(${expr.value.args.map(arg => exprToString).join(', ')})`;
+            return `${exprToString(expr.value.reference)}(${expr.value.args.map(arg => exprToString(arg)).join(', ')})`;
         case 'reference':
             return expr.value;
         case 'number':
             return expr.value.toString();
+        case 'binding':
+            return `let ${exprToString(expr.value.reference)} = ${exprToString(expr.value.binding)} in ${exprToString(expr.value.expression)}`;
+        case 'function':
+            return `let ${exprToString(expr.value.reference)}(${expr.value.args.map(arg => exprToString(arg)).join(', ')}) = ${exprToString(expr.value.body)} in ${exprToString(expr.value.context)}`
     }
 }
 
@@ -132,4 +160,43 @@ test('order of operations: 3', function () {
                 ),
             )
         ), parse("2+3*-4^5"));
+});
+
+suite('binding', function () {
+    suite('value', function () {
+        var ast = parse('let foo = 3 in foo');
+        test('parsing', function () {
+            assertExpr(
+                astBinding('foo', astNumber(3), astRef('foo')),
+                ast
+            );
+        });
+
+        test('compiling', function () {
+            assert.equal('(function (foo) { return foo; })(3)', compileExpr(ast, []));
+        });
+    });
+    suite('function', function () {
+        var ast = parse('let add(x, y) = x + y in add(2, 3)');
+        test('parsing', function () {
+            assertExpr(
+                astFunction(
+                    'add',
+                    [astRef('x'), astRef('y')],
+                    astBinary('+',
+                        astRef('x'),
+                        astRef('y')
+                    ),
+                    astCall(
+                        astRef('add'),
+                        [astNumber(2), astNumber(3)]
+                    )
+                ), ast
+            )
+        });
+
+        test('compiling', function () {
+            assert.equal('(function (add) { return add(2, 3); })(function (x, y) { return (x + y); })', compileExpr(ast, []));
+        });
+    });
 });

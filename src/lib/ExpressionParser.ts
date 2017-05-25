@@ -4,12 +4,10 @@ var ows = Parser.regex(/\s*/);
 var ws = Parser.regex(/\s+/);
 
 function token<P>(p: Parser.Parser<P>): Parser.Parser<P> {
-    return Parser.fromGenerator<string|P,P>(function *() {
-        yield ows;
-        var value = yield p;
-        yield ows;
-        return value;
-    });
+    return Parser.surround(ows, p, ows);
+}
+function keyword<P>(p: Parser.Parser<P>): Parser.Parser<P> {
+    return Parser.surround(ows, p, ws);
 }
 
 export interface NodeNumber {
@@ -26,6 +24,15 @@ export interface NodeCall {
         reference: NodeReference;
         args: NodeExpr[];
     };
+}
+export interface NodeFunction {
+    type: "function";
+    value: {
+        reference: NodeReference;
+        args: NodeReference[];
+        body: NodeExpr;
+        context: NodeExpr;
+    }
 }
 export type Fixity = "prefix" | "postfix";
 export interface NodeOperatorUnary {
@@ -44,12 +51,22 @@ export interface NodeOperatorBinary {
         right: NodeExpr;
     }
 }
+export interface NodeBinding {
+    type: "binding";
+    value: {
+        reference: NodeReference,
+        binding: NodeExpr,
+        expression: NodeExpr,
+    }
+}
 export type NodeExpr
     = NodeOperatorBinary
     | NodeOperatorUnary
     | NodeCall
     | NodeReference
     | NodeNumber
+    | NodeBinding
+    | NodeFunction
 
 const parseLiteral: Parser.Parser<NodeNumber> = Parser.fromGenerator(function *() {
     return yield Parser.map<string,NodeNumber>(
@@ -146,22 +163,67 @@ var parseExpression: Parser.Parser<NodeExpr> = Parser.buildExpressionParser<Node
     binop("left", "||"),
     binop("left", "<="), binop("left", "<"), binop("left", ">="), binop("left", ">"), binop("left", "=="), binop("left", "!=")
 ], () => Parser.choice([
+    parseBinding,
+    parseFunction,
     Parser.surround(token(Parser.str("(")), parseExpression, token(Parser.str(")"))),
     parseTerm
 ]));
+
+var parseBinding: Parser.Parser<NodeBinding> = Parser.fromGenerator<string|NodeReference|NodeExpr,NodeBinding>(function *() {
+    yield keyword(Parser.str("let"));
+    var reference = yield parseReference;
+    yield token(Parser.str("="));
+    var value = yield parseExpression;
+    yield keyword(Parser.str("in"));
+    var expr = yield parseExpression;
+    return {
+        type: "binding",
+        value: {
+            reference: reference,
+            binding: value,
+            expression: expr, 
+        }
+    } as NodeBinding;
+});
+
+var parseFunction: Parser.Parser<NodeFunction> = Parser.fromGenerator<string|NodeReference|NodeReference[]|NodeExpr,NodeFunction>(function *() {
+    yield keyword(Parser.str("let"));
+    var reference: NodeReference = yield parseReference;
+    var args: NodeReference[] = yield Parser.surround(
+        token(Parser.str("(")),
+        Parser.sepBy(token(Parser.str(',')), parseReference),
+        token(Parser.str(")"))
+    );
+    yield token(Parser.str("="));
+    var body: NodeExpr = yield parseExpression;
+    yield keyword(Parser.str("in"));
+    var context: NodeExpr = yield parseExpression;
+    return {
+        type: "function",
+        value: {
+            reference: reference,
+            args: args,
+            body: body,
+            context: context, 
+        }
+    } as NodeFunction;
+});
 
 export function parse(expression: string): NodeExpr {
     return Parser.runToEnd(parseExpression, expression);
 }
 
-function compileExpr(expression: NodeExpr): string {
+interface ScopeReference {
+    reference: string;
+}
+export function compileExpr(expression: NodeExpr, scopes: ScopeReference[]): string {
     switch (expression.type) {
         case "number": {
             return expression.value.toString();
         }
         case "binary": {
-            let left = compileExpr(expression.value.left);
-            let right = compileExpr(expression.value.right);
+            let left = compileExpr(expression.value.left, scopes);
+            let right = compileExpr(expression.value.right, scopes);
             switch (expression.value.op) {
                 case '*':
                 case '/':
@@ -185,12 +247,12 @@ function compileExpr(expression: NodeExpr): string {
             }
         }
         case "unary": {
-            let val = compileExpr(expression.value.value);
+            let val = compileExpr(expression.value.value, scopes);
             return `(-${val})`;
         }
         case "call": {
-            let ref = compileExpr(expression.value.reference);
-            let args = expression.value.args.map((arg) => compileExpr(arg));
+            let ref = compileExpr(expression.value.reference, scopes);
+            let args = expression.value.args.map((arg) => compileExpr(arg, scopes));
             return `${ref}(${args.join(', ')})`;
         }
         case "reference": {
@@ -205,14 +267,35 @@ function compileExpr(expression: NodeExpr): string {
             } else if (expression.value === 'rand') {
                 return 'Math.random';
             } else {
+                for (let scope of scopes) {
+                    if (scope.reference === expression.value) {
+                        return expression.value;
+                    }
+                }
                 throw new Error(`ReferenceError: reference variable ${expression.value} does not exist`);
             }
+        }
+        case "binding": {
+            var reference = expression.value.reference.value;
+            var binding = expression.value.binding;
+            var evaluation = expression.value.expression;
+            var newScope = scopes.concat([{ reference }]);
+            return `(function (${reference}) { return ${compileExpr(evaluation, newScope)}; })(${compileExpr(binding, scopes)})`;
+        }
+        case "function": {
+            var reference: string = expression.value.reference.value;
+            var args: string[] = expression.value.args.map(arg => arg.value);
+            var context: NodeExpr = expression.value.context;
+            var contextScope: ScopeReference[] = scopes.concat([{ reference: reference }]);
+            var body: NodeExpr = expression.value.body;
+            var bodyScope: ScopeReference[] = contextScope.concat(args.map(arg => ({ reference: arg })));
+            return `(function (${reference}) { return ${compileExpr(context, contextScope)}; })(function (${args.join(", ")}) { return ${compileExpr(body, bodyScope)}; })`;
         }
     }
 };
 
 export function compile(expression: NodeExpr): (x: number, y: number, t: number) => number {
-    var func = new Function('x', 'y', 't', `return ${compileExpr(expression)};`);
+    var func = new Function('x', 'y', 't', `return ${compileExpr(expression, [])};`);
     return function (x: number, y: number, t: number) {
         return func(x, y, t) as number;
     };
