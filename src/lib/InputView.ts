@@ -90,13 +90,10 @@ export class InputView {
     }
 
     public onFuncChange(): void {
-        console.log('neato', this.els.func.value);
         var result = this.model.setFunc(this.els.func.value);
-        console.log('result', result);
+        this.clearError('func');
         if (isLeft(result)) {
             this.setError('func', result.val, this.els.func);
-        } else {
-            this.clearError('func');
         }
     }
 
