@@ -179,6 +179,18 @@ test('order of operations: 3', function () {
         ), parse("2+3*-4^5"));
 });
 
+suite('operators', function () {
+    function assertCompiles(result: string, expr: string): void {
+        var ast = parse(expr);
+        var compiled = compileExpr(ast, []);
+        assert.equal(compiled, result);
+    }
+    
+    test('modulus', function () {
+        assertCompiles('(3 % 5)', '3 % 5');
+    })
+});
+
 suite('binding', function () {
     suite('value', function () {
         var ast = parse('let foo = 3 in foo');

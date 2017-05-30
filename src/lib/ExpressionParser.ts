@@ -167,11 +167,17 @@ var parseExpression: Parser.Parser<NodeExpr> = Parser.buildExpressionParser<Node
     binop("right", "^"),
     binop("left", "*"),
     binop("left", "/"),
+    binop("left", "%"),
     binop("left", "+"),
     binop("left", "-"),
     binop("left", "&&"),
     binop("left", "||"),
-    binop("left", "<="), binop("left", "<"), binop("left", ">="), binop("left", ">"), binop("left", "=="), binop("left", "!=")
+    binop("left", "<="),
+    binop("left", "<"),
+    binop("left", ">="),
+    binop("left", ">"),
+    binop("left", "=="),
+    binop("left", "!=")
 ], () => Parser.choice([
     parseBinding,
     parseFunction,
@@ -251,6 +257,7 @@ export function compileExpr(expression: NodeExpr, scopes: ScopeReference[]): str
             let left = compileExpr(expression.value.left, scopes);
             let right = compileExpr(expression.value.right, scopes);
             switch (expression.value.op) {
+                case '%':
                 case '*':
                 case '/':
                 case '+':
