@@ -1,4 +1,16 @@
-import { parse, compileExpr, NodeCall, NodeExpr, NodeNumber, NodeOperatorBinary, NodeOperatorUnary, NodeReference, NodeBinding, NodeFunction } from './ExpressionParser';
+import {
+    parse,
+    compileExpr,
+    NodeCall,
+    NodeExpr,
+    NodeNumber,
+    NodeOperatorBinary,
+    NodeOperatorUnary,
+    NodeReference,
+    NodeBinding,
+    NodeFunction,
+    NodeIf,
+} from './ExpressionParser';
 import { assert } from 'chai';
 
 function astNumber(val: number): NodeNumber {
@@ -15,6 +27,9 @@ function astUnary(op: string, fixity: "prefix" | "postfix", val: NodeExpr): Node
 }
 function astBinary(op: string, left: NodeExpr, right: NodeExpr): NodeOperatorBinary {
     return { type: "binary", value: { op: op, left: left, right: right } };
+}
+function astIf(cond: NodeExpr, thenExpr: NodeExpr, elseExpr: NodeExpr): NodeIf {
+    return { type: "if", value: { cond: cond, then: thenExpr, else: elseExpr } };
 }
 function astBinding(reference: string, binding: NodeExpr, value: NodeExpr): NodeBinding {
     return {
@@ -57,6 +72,8 @@ function exprToString(expr: NodeExpr): string {
             return `let ${exprToString(expr.value.reference)} = ${exprToString(expr.value.binding)} in ${exprToString(expr.value.expression)}`;
         case 'function':
             return `let ${exprToString(expr.value.reference)}(${expr.value.args.map(arg => exprToString(arg)).join(', ')}) = ${exprToString(expr.value.body)} in ${exprToString(expr.value.context)}`
+        case 'if':
+            return `if ${exprToString(expr.value.cond)} then ${exprToString(expr.value.then)} else ${exprToString(expr.value.else)}`;
     }
 }
 
@@ -198,5 +215,23 @@ suite('binding', function () {
         test('compiling', function () {
             assert.equal('(function (add) { return add(2, 3); })(function (x, y) { return (x + y); })', compileExpr(ast, []));
         });
+    });
+});
+
+suite('if', function () {
+    var ast = parse('if 1 > 2 then 100 else 200');
+    test('parsing', function () {
+        assertExpr(
+            astIf(
+                astBinary('>', astNumber(1), astNumber(2)),
+                astNumber(100),
+                astNumber(200)
+            ),
+            ast
+        );
+    });
+
+    test('compiling', function () {
+        assert.equal('((1 > 2) ? 100 : 200)', compileExpr(ast, []));
     });
 });

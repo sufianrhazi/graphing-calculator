@@ -59,6 +59,15 @@ export interface NodeBinding {
         expression: NodeExpr,
     }
 }
+export interface NodeIf {
+    type: "if";
+    value: {
+        cond: NodeExpr;
+        then: NodeExpr;
+        else: NodeExpr;
+    }
+}
+
 export type NodeExpr
     = NodeOperatorBinary
     | NodeOperatorUnary
@@ -67,6 +76,7 @@ export type NodeExpr
     | NodeNumber
     | NodeBinding
     | NodeFunction
+    | NodeIf
 
 const parseLiteral: Parser.Parser<NodeNumber> = Parser.fromGenerator(function *() {
     return yield Parser.map<string,NodeNumber>(
@@ -165,10 +175,26 @@ var parseExpression: Parser.Parser<NodeExpr> = Parser.buildExpressionParser<Node
 ], () => Parser.choice([
     parseBinding,
     parseFunction,
+    parseIf,
     Parser.surround(token(Parser.str("(")), parseExpression, token(Parser.str(")"))),
     parseTerm
 ]));
-
+var parseIf: Parser.Parser<NodeIf> = Parser.fromGenerator<string|NodeExpr,NodeIf>(function *() {
+    yield keyword(Parser.str("if"));
+    var cond: NodeExpr = yield parseExpression;
+    yield keyword(Parser.str("then"));
+    var thenEx: NodeExpr = yield parseExpression;
+    yield keyword(Parser.str("else"));
+    var elseEx: NodeExpr = yield parseExpression;
+    return {
+        type: "if",
+        value: {
+            cond: cond,
+            then: thenEx,
+            else: elseEx,
+        }
+    } as NodeIf;
+});
 var parseBinding: Parser.Parser<NodeBinding> = Parser.fromGenerator<string|NodeReference|NodeExpr,NodeBinding>(function *() {
     yield keyword(Parser.str("let"));
     var reference = yield parseReference;
@@ -290,6 +316,9 @@ export function compileExpr(expression: NodeExpr, scopes: ScopeReference[]): str
             var body: NodeExpr = expression.value.body;
             var bodyScope: ScopeReference[] = contextScope.concat(args.map(arg => ({ reference: arg })));
             return `(function (${reference}) { return ${compileExpr(context, contextScope)}; })(function (${args.join(", ")}) { return ${compileExpr(body, bodyScope)}; })`;
+        }
+        case "if": {
+            return `(${compileExpr(expression.value.cond, scopes)} ? ${compileExpr(expression.value.then, scopes)} : ${compileExpr(expression.value.else, scopes)})`;
         }
     }
 };
