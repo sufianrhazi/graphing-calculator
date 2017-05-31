@@ -47,6 +47,7 @@ export class InputView {
 
     public update(): void {
         this.els.start.disabled = this.model.getIsRunning() && !this.model.getIsPaused();
+        this.els.time.disabled = this.model.getIsRunning() && !this.model.getIsPaused();
         this.els.pause.disabled = !this.model.getIsRunning();
         this.els.stop.disabled  = !this.model.getIsRunning();
         this.els.time.disabled  = this.model.getIsRunning();

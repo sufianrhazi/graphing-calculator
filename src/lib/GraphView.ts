@@ -18,14 +18,28 @@ export class GraphView {
         this.el = el;
         this.renderHandle = null;
         this.resumeTime = null;
-        this.elapsedTime = 0;
+        this.elapsedTime = this.model.getTime();
         this.model.listen((data: string) => {
-            if (data === 'running' || data === 'paused') {
-                if (this.model.getIsRunning() && !this.model.getIsPaused()) {
-                    this.resumeRender();
-                } else {
-                    this.stopRender();
-                }
+            switch (data) {
+                case 'running': // fall through
+                case 'paused':
+                    if (this.model.getIsRunning() && !this.model.getIsPaused()) {
+                        this.resumeRender();
+                    } else {
+                        this.stopRender();
+                    }
+                    break;
+                case 'func':
+                    if (!this.model.getIsRunning() || this.model.getIsPaused()) {
+                        this.render(this.elapsedTime);
+                    }
+                    break;
+                case 'time':
+                    this.elapsedTime = this.model.getTime();
+                    if (!this.model.getIsRunning() || this.model.getIsPaused()) {
+                        this.render(this.elapsedTime);
+                    }
+                    break;
             }
         });
 
@@ -34,6 +48,7 @@ export class GraphView {
         });
         this.renderer.setClearColor(0xffffff);
         this.initScene();
+        this.render(this.elapsedTime);
     }
 
     private resumeRender(): void {
@@ -42,7 +57,7 @@ export class GraphView {
             return;
         }
         this.resumeTime = performance.now();
-        this.render();
+        this.updateFrame();
     }
 
     private stopRender(): void {
@@ -63,20 +78,20 @@ export class GraphView {
         this.renderHandle = null;
     }
 
-    private render(): void {
+    private updateFrame(): void {
         if (this.resumeTime === null) {
             throw new Error("This should never happen: resumeTime is null");
         }
         var currentTime = (this.elapsedTime + performance.now() - this.resumeTime) / 1000;
-        this.updateScene(currentTime);
-        this.renderer.render(this.scene, this.camera);
+        this.model.setTime(currentTime);
+        this.render(currentTime);
         this.renderHandle = requestAnimationFrame(() => {
             this.renderHandle = null;
-            this.render();
+            this.updateFrame();
         });
     }
 
-    private updateScene(sec: number): void {
+    private render(sec: number): void {
         var update = (fn: (x: number, y: number, t: number) => number, t: number) => {
             var offset = 0;
             var MIN = this.model.getMin();
@@ -100,6 +115,8 @@ export class GraphView {
             8 * Math.cos(Math.PI / 4 + Math.PI * 2 * sec / 300)
         );
         this.camera.lookAt(new THREE.Vector3(0, 1, 0));
+
+        this.renderer.render(this.scene, this.camera);
     }
 
     private initScene(): void {

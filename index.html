@@ -2,34 +2,41 @@
 <html lang="en-US">
     <head>
         <meta charset="utf-8">
-        <title>Book of Time</title>
+        <title>Graphing Calculator</title>
         <style>
 body {
     font-family: sans-serif;
     font-size: 16px/1.4;
 }
 input[type="number"] {
-    border: none;
-    border-bottom: 2px solid black;
+    border: 0 solid black;
+    border-bottom-width: 2px;
     line-height: inherit;
     font-size: inherit;
+    width: 6ch;
 }
 input[type="range"] {
-    width: 80ex;
-    border: none;
+    width: 60ch;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    border-top: thin black solid;
     height: 1.4em;
     vertical-align: middle;
 }
 textarea {
-    border: none;
-    border-bottom: 2px solid black;
+    border: 1px solid black;
+    border-bottom-width: 2px;
     font-size: inherit;
     line-height: inherit;
     vertical-align: top;
     padding: 0;
     margin: 0;
-    width: 80ex;
-    height: 1.4em;
+    width: 60ch;
+    height: 7em;
+}
+.horiz {
+    display: flex;
 }
 .errors {
     background-color: #ff8888;
@@ -38,25 +45,36 @@ textarea {
         </style>
     </head>
     <body>
-        <h1>Book of Time</h1>
+        <h1>Graphing Calculator</h1>
+        <div class="horiz">
+        <canvas width="480" height="480" data-graph-canvas></canvas>
         <fieldset data-form>
+            <p>
             <label>Axis bounds: [min=<input type="number" name="min" id="input-min" placeholder="-1.0" value="-3.0" /></label>,
             <label>max=<input type="number" name="max" id="input-max" placeholder="1.0" value="3.0" />]</label>
-            <br/>
+            </p>
+            <p>
             <label>f(x, y, t) =
-                <textarea name="func" id="input-func" placeholder="cos(x*2*pi + t/100) + sin(y*2*pi + t/100)">cos(x*2*pi + t/100) + sin(y*2*pi + t/100)</textarea>
+                <textarea name="func" id="input-func" placeholder="cos(x*2*pi + t/100) + sin(y*2*pi + t/100)">
+let twopi = 2 * pi in
+let wave(per, amp, off) = amp * sin(twopi * (t + off) * per) in
+wave(0.3, 0.2, x) +
+wave(0.5, 0.5, y ^ 2 / 3) +
+wave(0.7, 0.1, x + y) +
+1</textarea>
             </label>
-            <br/>
+            </p>
+            <p>
             <label>t =
                 <input type="range" name="time" id="input-time" min="0" max="600" step="any" value="0" /> <span data-time-value></span>
             </label>
-            <br/>
+            </p>
             <button name="start">Start</button>
             <button name="pause">Pause</button>
             <button name="stop">Stop</button>
             <pre class="errors" data-errors></pre>
         </fieldset>
-        <canvas width="480" height="480" data-graph-canvas></canvas>
+        </div>
         <script src="build/bundle/main.js"></script>
     </body>
 </html>
