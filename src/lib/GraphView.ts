@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { InputViewModel } from "./InputViewModel";
+import { GraphModel } from "./GraphModel";
 
 export class GraphView {
-    private model: InputViewModel;
+    private model: GraphModel;
     private el: HTMLCanvasElement;
     private renderHandle: number | null;
     private resumeTime: number | null;
@@ -13,7 +13,7 @@ export class GraphView {
     private camera: THREE.Camera;
     private graphGeo: THREE.Geometry;
 
-    constructor(model: InputViewModel, el: HTMLCanvasElement) {
+    constructor(model: GraphModel, el: HTMLCanvasElement) {
         this.model = model;
         this.el = el;
         this.renderHandle = null;

@@ -1,10 +1,10 @@
 import { qs, qsa, on, getOne } from './lib/SimpleDOM';
 import { left, right } from './lib/Either';
-import { InputViewModel } from './lib/InputViewModel';
+import { GraphModel } from './lib/GraphModel';
 import { InputView } from './lib/InputView';
 import { GraphView } from './lib/GraphView';
 
-var inputModel = new InputViewModel({
+var inputModel = new GraphModel({
     min: parseFloat(getOne(document.body, '[name="min"]', HTMLInputElement).value),
     max: parseFloat(getOne(document.body, '[name="max"]', HTMLInputElement).value),
     func: getOne(document.body, '[name="func"]', HTMLTextAreaElement).value,

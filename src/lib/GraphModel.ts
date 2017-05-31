@@ -2,14 +2,14 @@ import { Observable, Observer, ObserverCallback } from "./Observer";
 import { Either, left, right, assertRight } from "./Either";
 import { parse, compile } from "./ExpressionParser";
 
-interface InputViewModelData {
+interface GraphModelData {
     min: number;
     max: number;
     func: string;
     time: number;
 }
 
-export class InputViewModel implements Observable<string> {
+export class GraphModel implements Observable<string> {
     private min: number;
     private max: number;
     private func: (x: number, y: number, t: number) => number;
@@ -18,7 +18,7 @@ export class InputViewModel implements Observable<string> {
     private isPaused: boolean;
     private observer: Observer<string>;
 
-    constructor(properties: InputViewModelData) {
+    constructor(properties: GraphModelData) {
         this.observer = new Observer();
         assertRight(this.setMin(properties.min), 'Invalid min');
         assertRight(this.setMax(properties.max), 'Invalid max');

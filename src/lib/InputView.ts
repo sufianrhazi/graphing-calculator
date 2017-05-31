@@ -1,10 +1,10 @@
 import { qs, qsa, getOne, on } from './SimpleDom';
-import { InputViewModel } from "./InputViewModel";
+import { GraphModel } from "./GraphModel";
 import { Either, left, right, isLeft, isRight } from "./Either";
 
 export class InputView {
     private el: Element;
-    private model: InputViewModel;
+    private model: GraphModel;
     private els: {
         min: HTMLInputElement;
         max: HTMLInputElement;
@@ -17,7 +17,7 @@ export class InputView {
         errors: HTMLElement;
     };
 
-    constructor(model: InputViewModel, el: Element) {
+    constructor(model: GraphModel, el: Element) {
         this.el = el;
         this.model = model;
         this.els = {
