@@ -1,4 +1,4 @@
-import { qs, qsa, getOne, on } from './SimpleDom';
+import { qs, qsa, getOne, on } from './SimpleDOM';
 import { GraphModel } from "./GraphModel";
 import { Either, left, right, isLeft, isRight } from "./Either";
 
